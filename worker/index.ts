@@ -4,8 +4,9 @@ import {
   handleImageOptimization
 } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+import { replenishCandidatePool } from "../src/server/candidate-pool-service";
 
-interface Env {
+interface Env extends Cloudflare.Env {
   ASSETS: {
     fetch(request: Request): Promise<Response>;
   };
@@ -49,6 +50,14 @@ const worker = {
     }
 
     return handler.fetch(request, env, ctx);
+  },
+
+  async scheduled(
+    _controller: ScheduledController,
+    _env: Env,
+    ctx: ExecutionContext
+  ): Promise<void> {
+    ctx.waitUntil(replenishCandidatePool({ targetPublished: 96, maxRuns: 3 }));
   }
 };
 

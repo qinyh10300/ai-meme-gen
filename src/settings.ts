@@ -1,1 +1,1 @@
-export const jokeQualityControllerThreshold = 88;
+export const jokeQualityControllerThreshold = 78;

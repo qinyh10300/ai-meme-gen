@@ -181,6 +181,7 @@ export function analyzeScene(input: LifeSceneInput): LifeSceneAnalysis {
   const text = input.text.trim();
   const profile = findBestProfile(text);
   const matchedSignals = matchEmotionSignals(text);
+  const sceneAnchor = compactSceneAnchor(text);
 
   const hiddenEmotions = unique([
     ...(profile?.hiddenEmotions ?? []),
@@ -195,11 +196,11 @@ export function analyzeScene(input: LifeSceneInput): LifeSceneAnalysis {
   const motifs = profile?.motifs ?? inferGenericMotifs(text);
   const publicMask = profile?.publicMask ?? firstOrFallback(
     matchedSignals.flatMap((signal) => signal.masks),
-    "没事，我可以处理。"
+    `我只是想把「${sceneAnchor}」正常处理完。`
   );
   const privateTruth = profile?.privateTruth ?? firstOrFallback(
     matchedSignals.flatMap((signal) => signal.privateTruths),
-    `这件事真正戳中的不是事件本身，而是${motifs.fragileAsset}突然不够用了。`
+    `真正让我在意的不是「${sceneAnchor}」本身，而是${motifs.fragileAsset}突然不够用了。`
   );
 
   return {
@@ -286,4 +287,12 @@ function unique<T>(items: T[]): T[] {
 
 function firstOrFallback(items: string[], fallback: string): string {
   return items.find(Boolean) ?? fallback;
+}
+
+function compactSceneAnchor(text: string): string {
+  const normalized = text.replace(/[。！？!?]+$/g, "").trim();
+  const characters = [...normalized];
+  return characters.length <= 24
+    ? normalized
+    : `${characters.slice(0, 23).join("")}…`;
 }

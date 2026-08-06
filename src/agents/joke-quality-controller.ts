@@ -65,21 +65,26 @@ export function reviewJoke(
   const hasDialogue = /[“”]/.test(setupText);
   const interpretationsDiffer =
     normalize(draft.expectedReading) !== normalize(draft.revealedReading);
+  const hasCompleteStructure =
+    draft.setup.length > 0 &&
+    setupLength >= 6 &&
+    punchlineLength >= 3 &&
+    normalize(draft.emotionalTruth).length >= 4;
 
   const setupTrust = clamp(
-    65 +
-      (draft.setup.length >= 2 ? 9 : 4) +
-      (hasDialogue ? 7 : 0) +
-      Math.min(10, concreteCount * 2) +
-      Math.round((draft.editorialScore - 80) * 0.35),
+    58 +
+      (draft.setup.length >= 2 ? 10 : 5) +
+      (hasDialogue ? 8 : 0) +
+      Math.min(14, concreteCount * 3) +
+      (setupLength >= 12 && setupLength <= 96 ? 8 : 2),
     40,
     98
   );
   const reversal = clamp(
-    64 +
-      (interpretationsDiffer ? 18 : 0) +
-      (punchlineLength <= 28 ? 7 : 2) +
-      Math.round((draft.editorialScore - 80) * 0.45) -
+    50 +
+      (interpretationsDiffer ? 26 : 0) +
+      (punchlineLength <= 28 ? 10 : 3) +
+      (normalize(draft.revealedReading).length >= 6 ? 6 : 0) -
       aiSmellCount * 24,
     20,
     99
@@ -93,7 +98,7 @@ export function reviewJoke(
     97
   );
   const rhythm = clamp(
-    72 +
+    70 +
       (draft.setup.length === 2 ? 10 : 5) +
       (punchlineLength >= 7 && punchlineLength <= 28 ? 12 : 3) -
       Math.max(0, setupLength - 88) * 0.25,
@@ -101,22 +106,26 @@ export function reviewJoke(
     98
   );
   const specificity = clamp(
-    62 + Math.min(18, concreteCount * 4) + (hasDialogue ? 8 : 0) + (draft.topics.length >= 2 ? 6 : 0),
+    60 +
+      Math.min(18, concreteCount * 4) +
+      (hasDialogue ? 8 : 0) +
+      (draft.topics.length >= 2 ? 7 : 0) +
+      (normalize(draft.emotionalTruth).length >= 8 ? 5 : 0),
     40,
     96
   );
   const safety = clamp(98 - riskCount * 45, 5, 98);
   const overall = Math.round(
-    setupTrust * 0.16 +
-      reversal * 0.27 +
+    setupTrust * 0.18 +
+      reversal * 0.28 +
       clarity * 0.16 +
-      rhythm * 0.16 +
-      specificity * 0.1 +
-      safety * 0.08 +
-      draft.editorialScore * 0.07
+      rhythm * 0.15 +
+      specificity * 0.12 +
+      safety * 0.11
   );
 
   const reasons: string[] = [];
+  if (!hasCompleteStructure) reasons.push("铺垫、包袱或情绪真相不完整");
   if (!interpretationsDiffer) reasons.push("预期理解和揭示理解没有形成有效错位");
   if (punchlineLength > 42) reasons.push("包袱过长");
   if (setupLength > 125) reasons.push("铺垫过长");

@@ -3,6 +3,9 @@ import type { OriginalJokeDraft } from "../humor/types.js";
 export interface DuplicateMatch {
   id: string;
   similarity: number;
+  lexicalSimilarity: number;
+  structuralSimilarity: number;
+  reason: "lexical" | "structural";
 }
 
 export function findNearDuplicate(
@@ -21,12 +24,54 @@ export function findNearDuplicate(
         normalizeText(joke.punchline),
         2
       );
-      const similarity = Math.max(fullSimilarity, punchlineSimilarity * 0.92);
+      const lexicalSimilarity = Math.max(fullSimilarity, punchlineSimilarity * 0.92);
+      const structure = structureSimilarity(candidate, joke);
+      const similarity = Math.max(lexicalSimilarity, structure);
 
-      return { id: joke.id, similarity };
+      return {
+        id: joke.id,
+        similarity,
+        lexicalSimilarity,
+        structuralSimilarity: structure,
+        reason: structure > lexicalSimilarity ? "structural" as const : "lexical" as const
+      };
     })
     .filter((match) => match.similarity >= threshold)
     .sort((a, b) => b.similarity - a.similarity)[0];
+}
+
+export function findBatchNearDuplicates(
+  candidates: OriginalJokeDraft[],
+  threshold = 0.76
+): Array<{ candidateId: string; match: DuplicateMatch }> {
+  const accepted: OriginalJokeDraft[] = [];
+  const duplicates: Array<{ candidateId: string; match: DuplicateMatch }> = [];
+
+  for (const candidate of candidates) {
+    const match = findNearDuplicate(candidate, accepted, threshold);
+    if (match) {
+      duplicates.push({ candidateId: candidate.id, match });
+    } else {
+      accepted.push(candidate);
+    }
+  }
+
+  return duplicates;
+}
+
+export function structureSimilarity(
+  left: OriginalJokeDraft,
+  right: OriginalJokeDraft
+): number {
+  const expected = ngramSimilarity(left.expectedReading, right.expectedReading, 2);
+  const revealed = ngramSimilarity(left.revealedReading, right.revealedReading, 2);
+  const emotional = ngramSimilarity(left.emotionalTruth, right.emotionalTruth, 2);
+  const mechanism = left.mechanismId === right.mechanismId ? 1 : 0;
+  const format = left.format === right.format ? 1 : 0;
+
+  return Number(
+    (expected * 0.22 + revealed * 0.36 + emotional * 0.2 + mechanism * 0.16 + format * 0.06).toFixed(4)
+  );
 }
 
 export function createJokeFingerprint(joke: OriginalJokeDraft): string {

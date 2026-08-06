@@ -8,8 +8,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol = headerList.get("x-forwarded-proto") ?? "http";
   const baseUrl = new URL(`${protocol}://${host}`);
   const title = "MemePop | 中文笑点实验室";
-  const description = "刷一条由 AI 从真实生活里提炼出的中文互联网笑话。";
-  const socialImage = new URL("/og.png", baseUrl).toString();
+  const description = "从中文互联网文化信号里提炼笑点，由 AI 原创改写并经过双重审稿的中文笑话流。";
+  const socialImage = new URL("/og-v2.png", baseUrl).toString();
 
   return {
     metadataBase: baseUrl,

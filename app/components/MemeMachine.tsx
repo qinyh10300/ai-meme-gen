@@ -12,7 +12,7 @@ import {
   type JokeVote
 } from "../../src/web/joke-engine";
 
-const FEEDBACK_STORAGE_KEY = "memepop-feedback-v1";
+const FEEDBACK_STORAGE_KEY = "memepop-feedback-v2";
 
 type TransitionPhase = "idle" | "leaving" | "loading" | "entering";
 
@@ -92,7 +92,7 @@ export function MemeMachine() {
   const isBusy = phase !== "idle";
 
   return (
-    <div className="meme-page" data-palette={current.palette}>
+    <div className="meme-page" data-palette={current.palette} data-format={current.format}>
       <div className="accent-block" aria-hidden="true" />
 
       <header className="topbar">
@@ -103,7 +103,7 @@ export function MemeMachine() {
 
         <div className="ai-status">
           <Sparkles aria-hidden="true" size={18} strokeWidth={2.4} />
-          <span>AI 正在造梗</span>
+          <span>中文笑点训练中</span>
         </div>
       </header>
 
@@ -125,22 +125,30 @@ export function MemeMachine() {
               </span>
             </div>
           ) : (
-            <h1 className="joke-text">
-              <span>{current.text}</span>
+            <article className="joke-copy">
+              <div className="joke-setup">
+                {current.setup.map((line) => (
+                  <p className="setup-line" key={line}>
+                    {line}
+                  </p>
+                ))}
+              </div>
+              <h1 className="joke-punchline">{current.punchline}</h1>
+              {current.tag ? <p className="joke-tag">{current.tag}</p> : null}
               <span className="joke-emoji" aria-hidden="true">
                 {current.emoji}
               </span>
-            </h1>
+            </article>
           )}
         </div>
 
         <div className={`vote-response ${lastVote ? "is-visible" : ""}`} aria-hidden="true">
-          {lastVote === "funny" ? "哈哈，记住这个路数了" : "收到，换个路数"}
+          {lastVote === "funny" ? "记住了，你吃这个拐法" : "收到，下一条换个脑回路"}
         </div>
       </main>
 
       <section className="feedback-panel" aria-label="评价这条笑话">
-        <p className="feedback-question">笑点对上了吗？</p>
+        <p className="feedback-question">这条打中了吗？</p>
         <div className="feedback-buttons">
           <button
             className="vote-button vote-button-bad"

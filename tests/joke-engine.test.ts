@@ -5,24 +5,34 @@ import {
   createFeedbackMemory,
   recordFeedback
 } from "../src/web/joke-engine.js";
+import { reviewJoke } from "../src/agents/joke-quality-controller.js";
+import { findNearDuplicate } from "../src/agents/originality-guard.js";
+import { originalJokeCorpus } from "../src/data/original-joke-corpus.js";
+import { auditCultureJokeDeck } from "../src/pipeline/build-culture-joke-deck.js";
+import { jokeQualityControllerThreshold } from "../src/settings.js";
 
 describe("web joke engine", () => {
-  it("builds a varied emoji-decorated deck from the punchline pipeline", () => {
+  it("builds a varied, reviewed deck with setup and punchline structure", () => {
     const deck = buildJokeDeck();
 
-    expect(deck.length).toBeGreaterThanOrEqual(30);
-    expect(new Set(deck.map((joke) => joke.label)).size).toBeGreaterThanOrEqual(7);
+    expect(deck.length).toBeGreaterThanOrEqual(44);
+    expect(new Set(deck.map((joke) => joke.mechanismId)).size).toBe(8);
     expect(deck.every((joke) => joke.emoji.length > 0)).toBe(true);
-    expect(deck.every((joke) => joke.score >= 70)).toBe(true);
+    expect(deck.every((joke) => joke.setup.length > 0 && joke.punchline.length > 0)).toBe(true);
+    expect(
+      deck.every((joke) => joke.score >= jokeQualityControllerThreshold)
+    ).toBe(true);
   });
 
-  it("learns a preference for the operator behind a funny joke", () => {
+  it("learns mechanism, format, and topic preferences from a funny vote", () => {
     const joke = buildJokeDeck()[0];
     const memory = recordFeedback(createFeedbackMemory(), joke, "funny");
 
     expect(memory.total).toBe(1);
     expect(memory.funny).toBe(1);
-    expect(memory.operatorAffinity[joke.operatorId]).toBeGreaterThan(0);
+    expect(memory.mechanismAffinity[joke.mechanismId]).toBeGreaterThan(0);
+    expect(memory.formatAffinity[joke.format]).toBeGreaterThan(0);
+    expect(memory.topicAffinity[joke.topics[0]]).toBeGreaterThan(0);
     expect(memory.seenIds).toContain(joke.id);
   });
 
@@ -37,5 +47,33 @@ describe("web joke engine", () => {
 
     expect(next.id).not.toBe(current.id);
     expect(memory.seenIds).not.toContain(next.id);
+  });
+
+  it("rejects explanatory AI-smelling copy", () => {
+    const draft = {
+      ...originalJokeCorpus[0],
+      id: "ai-smell",
+      punchline: "这个笑点在于巧妙反转，令人捧腹。"
+    };
+    const review = reviewJoke(draft);
+
+    expect(review.accepted).toBe(false);
+    expect(review.reasons).toContain("包含解释笑点的 AI 腔");
+  });
+
+  it("catches copied or minimally changed corpus entries", () => {
+    const original = originalJokeCorpus[0];
+    const copied = { ...original, id: "copied" };
+    const match = findNearDuplicate(copied, [original]);
+
+    expect(match?.id).toBe(original.id);
+    expect(match?.similarity).toBe(1);
+  });
+
+  it("passes the full editorial corpus through both quality gates", () => {
+    const audit = auditCultureJokeDeck();
+
+    expect(audit.accepted).toHaveLength(originalJokeCorpus.length);
+    expect(audit.rejected).toEqual([]);
   });
 });

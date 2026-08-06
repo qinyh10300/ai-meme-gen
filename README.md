@@ -2,7 +2,7 @@
 
 MemePop is an AI-assisted workflow for generating Chinese internet-style memes from everyday life scenes.
 
-The first MVP focuses on the part that matters most: turning a subtle human situation into a sharp punchline.
+The current MVP focuses on the part that matters most: turning a believable Chinese life situation into a setup that can be re-read after a sharp final punchline.
 
 ## Quick Start
 
@@ -12,6 +12,12 @@ npm run dev
 ```
 
 Open the local URL printed by the development server. The web experience presents one joke at a time and learns a lightweight local preference signal from the two feedback buttons.
+
+Run the editorial gate separately:
+
+```bash
+npm run jokes:audit
+```
 
 ## CLI
 
@@ -27,14 +33,13 @@ npm run meme -- "周一早上上班" --json
 ## Current Pipeline
 
 ```text
-life scene
--> scene analysis
--> Chinese internet emotion signals
--> punchline operators
--> humor critic ranking
+public Chinese internet signals (mechanisms only)
+-> original setup and punchline corpus
+-> structure quality controller
+-> near-duplicate originality guard
 -> emoji decoration
--> preference-aware joke feed
--> meme format suggestions
+-> mechanism / format / topic preference learning
+-> joke feed
 ```
 
-The current version runs without an API key. Its feedback memory stays in the browser, and the generation pipeline remains deterministic so it is easy to test before adding a live LLM provider.
+The current version runs without an API key. Its feedback memory stays in the browser, and the production corpus is deterministic so every candidate can be audited before adding a live model writer. Research notes and content boundaries are documented in `research/chinese-humor-method.md`.

@@ -19,9 +19,10 @@ export function selectGenerationProvider(): ProviderSelection {
 
   const model = env.OPENAI_MODEL?.trim() || "gpt-5.6";
   const judgeModel = env.OPENAI_JUDGE_MODEL?.trim() || model;
+  const baseUrl = env.OPENAI_BASE_URL?.trim() || undefined;
 
   return {
-    primary: new OpenAIHumorProvider({ apiKey, model, judgeModel }),
+    primary: new OpenAIHumorProvider({ apiKey, model, judgeModel, baseUrl }),
     fallback,
     modelConfigured: true
   };

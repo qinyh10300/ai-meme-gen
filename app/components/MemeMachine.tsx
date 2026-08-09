@@ -45,6 +45,7 @@ interface PendingReason {
   jokeId: string;
   vote: JokeVote;
   dwellMs: number;
+  joke: CultureJoke;
 }
 
 export function MemeMachine() {
@@ -55,6 +56,7 @@ export function MemeMachine() {
   const [memory, setMemory] = useState<FeedbackMemory>(createFeedbackMemory);
   const [phase, setPhase] = useState<TransitionPhase>("idle");
   const [pendingReason, setPendingReason] = useState<PendingReason | null>(null);
+  const [lastVote, setLastVote] = useState<PendingReason | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [sourceLabel, setSourceLabel] = useState("审核内容池");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -115,7 +117,8 @@ export function MemeMachine() {
       const eventId = createClientEventId("feedback");
       const nextMemory = recordFeedback(memory, current, nextVote);
       setMemory(nextMemory);
-      setPendingReason({ eventId, jokeId: current.id, vote: nextVote, dwellMs });
+      setPendingReason(null);
+      setLastVote(null);
       setPhase("leaving");
 
       try {
@@ -165,6 +168,7 @@ export function MemeMachine() {
         setNotice("这次反馈暂未同步到服务器，本地偏好已经记住了。");
       }
 
+      setLastVote({ eventId, jokeId: current.id, vote: nextVote, dwellMs, joke: current });
       setCurrent(nextJoke);
       setPhase("entering");
       shownAt.current = performance.now();
@@ -193,6 +197,7 @@ export function MemeMachine() {
     }
     const saved = await postFeedback({ ...pendingReason, sessionId, reasonCode });
     setPendingReason(null);
+    if (saved) setLastVote(null);
     if (!saved) setNotice("原因标签暂时没同步上，主反馈仍保留在本机。");
   };
 
@@ -221,9 +226,11 @@ export function MemeMachine() {
 
   const hitRate = memory.total === 0 ? 0 : Math.round((memory.funny / memory.total) * 100);
   const sequenceNumber = String(memory.total + 1).padStart(2, "0");
+  const reviewJoke = pendingReason?.joke ?? null;
+  const displayedJoke = reviewJoke ?? current;
 
   return (
-    <div className="app-shell" data-palette={current.palette} data-format={current.format}>
+    <div className="app-shell" data-palette={displayedJoke.palette} data-format={displayedJoke.format}>
       <div className="accent-rail" aria-hidden="true" />
       <header className="topbar">
         <a className="brand" href="/" aria-label="MemePop 首页">
@@ -262,17 +269,22 @@ export function MemeMachine() {
 
       {mode === "feed" ? (
         <FeedView
-          current={current}
+          joke={displayedJoke}
+          isReview={Boolean(reviewJoke)}
           sequenceNumber={sequenceNumber}
           phase={phase}
           pendingReason={pendingReason}
+          lastVote={lastVote}
           notice={notice}
-          copied={copiedId === current.id}
+          copied={copiedId === displayedJoke.id}
           onVote={vote}
           onReason={submitReason}
+          onOpenReason={() => {
+            if (lastVote) setPendingReason(lastVote);
+          }}
           onSkipReason={() => setPendingReason(null)}
-          onCopy={() => void copyJoke(current)}
-          onShare={() => void shareJoke(current)}
+          onCopy={() => void copyJoke(displayedJoke)}
+          onShare={() => void shareJoke(displayedJoke)}
         />
       ) : (
         <StudioView
@@ -295,29 +307,39 @@ export function MemeMachine() {
 }
 
 function FeedView(props: {
-  current: CultureJoke;
+  joke: CultureJoke;
+  isReview: boolean;
   sequenceNumber: string;
   phase: TransitionPhase;
   pendingReason: PendingReason | null;
+  lastVote: PendingReason | null;
   notice: string | null;
   copied: boolean;
   onVote(vote: JokeVote): Promise<void>;
   onReason(code: FeedbackReasonCode): Promise<void>;
+  onOpenReason(): void;
   onSkipReason(): void;
   onCopy(): void;
   onShare(): void;
 }) {
   const isBusy = props.phase !== "idle";
-  const fullLength = [...formatJoke(props.current)].length;
+  const fullLength = [...formatJoke(props.joke)].length;
 
   return (
     <main className="feed-view">
-      <section className="joke-stage" aria-label="当前笑话">
+      <section
+        className={`joke-stage ${props.isReview ? "is-reviewing" : ""}`}
+        aria-label={props.isReview ? "上一条笑话" : "当前笑话"}
+      >
         <div className="joke-heading-row">
           <div className="joke-meta">
-            <span>NO. {props.sequenceNumber}</span>
+            {props.isReview ? (
+              <span className="review-badge">刚才是这条</span>
+            ) : (
+              <span>NO. {props.sequenceNumber}</span>
+            )}
             <span className="meta-divider" aria-hidden="true" />
-            <span>{props.current.label}</span>
+            <span>{props.joke.label}</span>
           </div>
           <div className="joke-tools" aria-label="笑话操作">
             <button className="icon-button" type="button" onClick={props.onCopy} title="复制笑话" aria-label="复制笑话">
@@ -342,13 +364,13 @@ function FeedView(props: {
           ) : (
             <article className="joke-copy">
               <div className="joke-setup">
-                {props.current.setup.map((line, index) => (
+                {props.joke.setup.map((line, index) => (
                   <p className="setup-line" key={`${index}-${line}`}>{line}</p>
                 ))}
               </div>
-              <h1 className="joke-punchline">{props.current.punchline}</h1>
-              {props.current.tag ? <p className="joke-tag">{props.current.tag}</p> : null}
-              <span className="joke-emoji" aria-hidden="true">{props.current.emoji}</span>
+              <h1 className="joke-punchline">{props.joke.punchline}</h1>
+              {props.joke.tag ? <p className="joke-tag">{props.joke.tag}</p> : null}
+              <span className="joke-emoji" aria-hidden="true">{props.joke.emoji}</span>
             </article>
           )}
         </div>
@@ -396,6 +418,12 @@ function FeedView(props: {
             </div>
           ) : props.notice ? (
             <p className="inline-notice" role="status">{props.notice}</p>
+          ) : props.lastVote ? (
+            <button className="reason-trigger" type="button" onClick={props.onOpenReason}>
+              {props.lastVote.vote === "funny"
+                ? "刚才那条好笑在哪？夸奖一下"
+                : "刚才那条差在哪？吐槽一下"}
+            </button>
           ) : null}
         </div>
       </section>

@@ -31,6 +31,7 @@ cp .env.example .dev.vars
 - `OPENAI_API_KEY`：不填则完整使用本地生成器。
 - `OPENAI_MODEL`：Writer 模型，默认 `gpt-5.6`。
 - `OPENAI_JUDGE_MODEL`：独立 Judge 模型，默认与 Writer 相同。
+- `OPENAI_BASE_URL`：可选，自定义 OpenAI 兼容 API 地址。
 - `MEMEPOP_ADMIN_SECRET`：调用候选池补货接口所需的 Bearer 密钥。
 
 不要提交 `.dev.vars`、`.env` 或任何真实密钥。

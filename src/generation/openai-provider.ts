@@ -14,6 +14,7 @@ interface OpenAIHumorProviderOptions {
   apiKey: string;
   model: string;
   judgeModel: string;
+  baseUrl?: string;
 }
 
 const promptVersion = "zh-humor-agent-v1";
@@ -26,6 +27,7 @@ export class OpenAIHumorProvider implements HumorGenerationProvider {
   constructor(options: OpenAIHumorProviderOptions) {
     this.client = new OpenAI({
       apiKey: options.apiKey,
+      baseURL: options.baseUrl,
       timeout: 30_000,
       maxRetries: 1
     });

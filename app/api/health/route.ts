@@ -12,7 +12,8 @@ export async function GET(): Promise<Response> {
         database: "connected",
         model: {
           configured: Boolean(env.OPENAI_API_KEY?.trim()),
-          name: env.OPENAI_MODEL?.trim() || "gpt-5.6"
+          name: env.OPENAI_MODEL?.trim() || "gpt-5.6",
+          baseUrl: env.OPENAI_BASE_URL?.trim() || null
         },
         counts
       },

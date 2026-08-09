@@ -4,7 +4,10 @@ import { writePunchlines } from "../agents/punchline-writer.js";
 import type { HumorMechanismId, JokeFormat, JokePalette } from "../humor/types.js";
 import type { GenerateJokeRequest } from "../platform/contracts.js";
 import type { LifeSceneAnalysis, RatedPunchlineCandidate } from "../types.js";
-import type { HumorGenerationProvider } from "./provider.js";
+import type {
+  CandidateRevision,
+  HumorGenerationProvider
+} from "./provider.js";
 import {
   judgeOutputSchema,
   writerOutputSchema,
@@ -100,6 +103,38 @@ export class DeterministicHumorProvider implements HumorGenerationProvider {
         .map((critique) => critique.candidateKey)
     });
   }
+
+  async revise(
+    input: GenerateJokeRequest,
+    output: WriterOutput,
+    revisions: CandidateRevision[]
+  ): Promise<WriterOutput | null> {
+    const analysis = analyzeScene({ text: input.scene, audience: input.audience });
+    const ranked = rankPunchlines(
+      writePunchlines(analysis, { text: input.scene, audience: input.audience }),
+      analysis
+    );
+    const failingKeys = new Set(revisions.map((revision) => revision.candidateKey));
+    const usedTexts = new Set(output.candidates.map((candidate) => candidate.punchline));
+    const sceneModel = toSceneModel(analysis);
+    let changed = false;
+
+    const candidates = mechanismOrder.map((mechanismId, index) => {
+      const current = output.candidates[index];
+      if (!failingKeys.has(current.candidateKey)) return current;
+      if (mechanismId === "confidence_only") return current;
+
+      const alternative = selectNextCandidate(ranked, mechanismId, usedTexts);
+      if (!alternative) return current;
+
+      usedTexts.add(alternative.text);
+      changed = true;
+      return toPlan(mechanismId, alternative, analysis, input, index);
+    });
+
+    if (!changed) return null;
+    return writerOutputSchema.parse({ sceneModel, candidates });
+  }
 }
 
 function toSceneModel(analysis: LifeSceneAnalysis): SceneModel {
@@ -139,6 +174,18 @@ function selectCandidate(
   return (
     candidates.find((candidate) => operatorMechanisms[candidate.operatorId] === mechanismId) ??
     candidates[fallbackIndex % candidates.length]
+  );
+}
+
+function selectNextCandidate(
+  candidates: RatedPunchlineCandidate[],
+  mechanismId: HumorMechanismId,
+  usedTexts: Set<string>
+): RatedPunchlineCandidate | undefined {
+  return candidates.find(
+    (candidate) =>
+      operatorMechanisms[candidate.operatorId] === mechanismId &&
+      !usedTexts.has(candidate.text)
   );
 }
 

@@ -114,6 +114,7 @@ export interface GenerateJokeResponse {
   sceneModel: SceneModel;
   candidates: GeneratedJokeCandidate[];
   rejectedCount: number;
+  revisionRounds: number;
   notice: string | null;
 }
 

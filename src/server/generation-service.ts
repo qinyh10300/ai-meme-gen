@@ -10,13 +10,18 @@ import type {
   GenerateJokeResponse
 } from "../platform/contracts.js";
 import { runLocalCritics } from "../generation/local-critic.js";
-import { HumorProviderError, type HumorGenerationProvider } from "../generation/provider.js";
+import {
+  HumorProviderError,
+  type CandidateRevision,
+  type HumorGenerationProvider
+} from "../generation/provider.js";
 import { selectGenerationProvider } from "../generation/provider-factory.js";
 import type {
   Critique,
   CritiqueReasonCode,
   JudgeOutput,
   PunchlinePlan,
+  SceneModel,
   WriterOutput
 } from "../generation/schemas.js";
 import {
@@ -43,6 +48,8 @@ interface GenerationOptions {
   source?: "studio" | "replenishment";
   skipRateLimit?: boolean;
 }
+
+const MAX_REVISION_ROUNDS = 3;
 
 export async function generateJokes(
   input: GenerateJokeRequest,
@@ -73,11 +80,20 @@ export async function generateJokes(
     promptVersion: provider.metadata.promptVersion
   });
 
+  const pool = (await listFeedCandidates(input.sessionId)).map((candidate) => candidate.joke);
   let output: WriterOutput;
   let judgment: JudgeOutput;
+  let revisionRounds = 0;
 
   try {
     ({ output, judgment } = await runProvider(provider, input));
+    ({ output, judgment, revisionRounds } = await reviseUntilClean(
+      provider,
+      input,
+      output,
+      judgment,
+      pool
+    ));
   } catch (error) {
     if (provider.metadata.name === "deterministic") {
       await failGenerationRun(runId, provider, startedAt, error);
@@ -88,9 +104,15 @@ export async function generateJokes(
     provider = selection.fallback;
     usedFallback = true;
     ({ output, judgment } = await runProvider(provider, input));
+    ({ output, judgment, revisionRounds } = await reviseUntilClean(
+      provider,
+      input,
+      output,
+      judgment,
+      pool
+    ));
   }
 
-  const pool = (await listFeedCandidates(input.sessionId)).map((candidate) => candidate.joke);
   const reviewed = reviewCandidates(runId, output, judgment, pool);
   let accepted = reviewed.filter((candidate) => candidate.accepted);
   let notice: string | null = usedFallback
@@ -140,7 +162,8 @@ export async function generateJokes(
     durationMs,
     errorCode: providerErrorCode,
     trace: {
-      traceVersion: "public-reasons-v1",
+      traceVersion: "public-reasons-v2",
+      revisionRounds,
       candidateReasonCodes: reviewed.map((candidate) => ({
         id: candidate.joke.id,
         accepted: candidate.accepted,
@@ -160,6 +183,7 @@ export async function generateJokes(
     sceneModel: output.sceneModel,
     candidates: accepted.slice(0, 6).map(toPublicCandidate),
     rejectedCount: rejected.length,
+    revisionRounds,
     notice
   };
 }
@@ -186,49 +210,137 @@ function reviewCandidates(
   const acceptedMechanisms = new Set<string>();
 
   return output.candidates
-    .map((plan, index) => {
-      const draft = planToDraft(plan, runId, index);
-      const local = runLocalCritics(draft, output.sceneModel);
-      const model = modelCritiques.get(plan.candidateKey);
-      const duplicate = findNearDuplicate(draft, [...pool, ...priorDrafts], 0.78);
-      const repeatedMechanism = acceptedMechanisms.has(draft.mechanismId);
-      const rawReasonCodes: CritiqueReasonCode[] = [
-        ...local.critique.reasonCodes.filter((reason) => reason !== "PASS"),
-        ...(model?.reasonCodes ?? []).filter((reason) => reason !== "PASS")
-      ];
-      if (duplicate) rawReasonCodes.push("NEAR_DUPLICATE");
-      if (repeatedMechanism) rawReasonCodes.push("TEMPLATE_REUSE");
-      const reasonCodes = unique(rawReasonCodes);
-      const accepted =
-        local.accepted &&
-        model?.decision !== "reject" &&
-        !duplicate &&
-        !repeatedMechanism;
-      const modelOverall = model?.overall ?? local.critique.overall;
-      const combinedOverall = Math.round(local.critique.overall * 0.65 + modelOverall * 0.35);
-      const review: Critique = {
-        ...local.critique,
-        overall: combinedOverall,
-        decision: accepted ? "accept" : "reject",
-        reasonCodes: reasonCodes.length === 0 ? ["PASS"] : reasonCodes
-      };
-      const joke = draftToCultureJoke(draft, local.qualityReview.scores, combinedOverall);
-
-      priorDrafts.push(draft);
-      if (accepted) {
-        acceptedMechanisms.add(draft.mechanismId);
-      }
-
-      return {
-        joke,
-        draft,
-        accepted,
-        review,
-        reasonCodes: review.reasonCodes,
-        modelRank: rank.get(plan.candidateKey) ?? 99
-      };
-    })
+    .map((plan, index) =>
+      assessCandidate(
+        plan,
+        index,
+        runId,
+        output.sceneModel,
+        modelCritiques,
+        pool,
+        priorDrafts,
+        acceptedMechanisms,
+        rank
+      )
+    )
     .sort((left, right) => left.modelRank - right.modelRank || right.review.overall - left.review.overall);
+}
+
+function assessCandidate(
+  plan: PunchlinePlan,
+  index: number,
+  runId: string,
+  sceneModel: SceneModel,
+  modelCritiques: Map<string, Critique>,
+  pool: CultureJoke[],
+  priorDrafts: OriginalJokeDraft[],
+  acceptedMechanisms: Set<string>,
+  rank: Map<string, number>
+): ReviewedCandidate {
+  const draft = planToDraft(plan, runId, index);
+  const local = runLocalCritics(draft, sceneModel);
+  const model = modelCritiques.get(plan.candidateKey);
+  const duplicate = findNearDuplicate(draft, [...pool, ...priorDrafts], 0.78);
+  const repeatedMechanism = acceptedMechanisms.has(draft.mechanismId);
+  const rawReasonCodes: CritiqueReasonCode[] = [
+    ...local.critique.reasonCodes.filter((reason) => reason !== "PASS"),
+    ...(model?.reasonCodes ?? []).filter((reason) => reason !== "PASS")
+  ];
+  if (duplicate) rawReasonCodes.push("NEAR_DUPLICATE");
+  if (repeatedMechanism) rawReasonCodes.push("TEMPLATE_REUSE");
+  const reasonCodes = unique(rawReasonCodes);
+  const accepted =
+    local.accepted &&
+    model?.decision !== "reject" &&
+    !duplicate &&
+    !repeatedMechanism;
+  const modelOverall = model?.overall ?? local.critique.overall;
+  const combinedOverall = Math.round(local.critique.overall * 0.65 + modelOverall * 0.35);
+  const review: Critique = {
+    ...local.critique,
+    overall: combinedOverall,
+    decision: accepted ? "accept" : "reject",
+    reasonCodes: reasonCodes.length === 0 ? ["PASS"] : reasonCodes
+  };
+  const joke = draftToCultureJoke(draft, local.qualityReview.scores, combinedOverall);
+
+  priorDrafts.push(draft);
+  if (accepted) {
+    acceptedMechanisms.add(draft.mechanismId);
+  }
+
+  return {
+    joke,
+    draft,
+    accepted,
+    review,
+    reasonCodes: review.reasonCodes,
+    modelRank: rank.get(plan.candidateKey) ?? 99
+  };
+}
+
+function collectRevisionFailures(
+  output: WriterOutput,
+  judgment: JudgeOutput,
+  pool: CultureJoke[]
+): CandidateRevision[] {
+  const modelCritiques = new Map(judgment.critiques.map((critique) => [critique.candidateKey, critique]));
+  const rank = new Map(judgment.rankedCandidateKeys.map((key, index) => [key, index]));
+  const priorDrafts: OriginalJokeDraft[] = [];
+  const acceptedMechanisms = new Set<string>();
+  const failures: CandidateRevision[] = [];
+
+  output.candidates.forEach((plan, index) => {
+    const candidate = assessCandidate(
+      plan,
+      index,
+      "revision",
+      output.sceneModel,
+      modelCritiques,
+      pool,
+      priorDrafts,
+      acceptedMechanisms,
+      rank
+    );
+    if (!candidate.accepted) {
+      failures.push({
+        candidateKey: plan.candidateKey,
+        mechanismId: plan.mechanismId,
+        reasonCodes: candidate.review.reasonCodes,
+        critique: candidate.review
+      });
+    }
+  });
+
+  return failures;
+}
+
+async function reviseUntilClean(
+  provider: HumorGenerationProvider,
+  input: GenerateJokeRequest,
+  output: WriterOutput,
+  judgment: JudgeOutput,
+  pool: CultureJoke[]
+): Promise<{ output: WriterOutput; judgment: JudgeOutput; revisionRounds: number }> {
+  let currentOutput = output;
+  let currentJudgment = judgment;
+  let revisionRounds = 0;
+
+  if (!provider.revise) {
+    return { output: currentOutput, judgment: currentJudgment, revisionRounds };
+  }
+
+  for (; revisionRounds < MAX_REVISION_ROUNDS; revisionRounds += 1) {
+    const failures = collectRevisionFailures(currentOutput, currentJudgment, pool);
+    if (failures.length === 0) break;
+    const revised = await provider.revise(input, currentOutput, failures);
+    if (!revised) break;
+    currentOutput = revised;
+    currentJudgment = await provider.judge(input, currentOutput);
+    validateProviderResult(currentOutput, currentJudgment);
+  }
+
+  return { output: currentOutput, judgment: currentJudgment, revisionRounds };
 }
 
 function validateProviderResult(output: WriterOutput, judgment: JudgeOutput): void {

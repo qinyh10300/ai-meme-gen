@@ -1,0 +1,80 @@
+.app-header {
+  width: 100%;
+  padding-left: 32rpx;
+  border-bottom: 3rpx solid #171713;
+  background: rgba(244, 243, 237, 0.96);
+}
+
+.app-header__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 88rpx;
+}
+
+.app-header__brand {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.app-header__mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 58rpx;
+  height: 58rpx;
+  flex: 0 0 58rpx;
+  border: 3rpx solid #171713;
+  border-radius: 12rpx;
+  background: #ffdf67;
+  font-family: Georgia, serif;
+  font-size: 32rpx;
+  font-weight: 900;
+  box-shadow: 4rpx 4rpx 0 #171713;
+}
+
+.app-header__copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin-left: 18rpx;
+}
+
+.app-header__kicker {
+  color: #77776f;
+  font-size: 16rpx;
+  font-weight: 800;
+  letter-spacing: 2rpx;
+}
+
+.app-header__title {
+  max-width: 230rpx;
+  overflow: hidden;
+  font-size: 29rpx;
+  font-weight: 900;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-header__status {
+  display: flex;
+  align-items: center;
+  max-width: 190rpx;
+  margin-left: 16rpx;
+  color: #55554f;
+  font-size: 20rpx;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.app-header__pulse {
+  width: 13rpx;
+  height: 13rpx;
+  margin-right: 10rpx;
+  border: 2rpx solid #171713;
+  border-radius: 50%;
+  background: #cfff57;
+  box-shadow: 0 0 0 5rpx rgba(207, 255, 87, 0.24);
+}

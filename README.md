@@ -77,6 +77,7 @@ npm run build
 
 | 接口 | 用途 |
 | --- | --- |
+| `POST /api/auth/wechat` | 用一次性微信 code 换取服务端会话 token |
 | `POST /api/feed/next` | 获取并记录下一条候选曝光 |
 | `POST /api/feedback` | 幂等保存单条反馈与原因 |
 | `GET/POST /api/compare` | 获取盲选对并保存胜者 |
@@ -89,6 +90,8 @@ npm run build
 Worker 暴露定时任务入口，每次可从原创文化卡片中补充公开候选。线上密钥与定时配置通过 Sites 管理。
 
 ## 其他入口
+
+微信小程序客户端位于 `miniapp/`。没有 AppID 时可使用游客项目和 mock 登录完成页面、交互及本地 API 联调；申请 AppID 后再切换真实微信登录。完整步骤见 `miniapp/README.md`。
 
 原有 CLI 仍可用于快速试写：
 

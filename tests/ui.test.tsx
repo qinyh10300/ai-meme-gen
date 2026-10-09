@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { HumorLab } from "../app/components/HumorLab.js";
 import { MemeMachine } from "../app/components/MemeMachine.js";
 import { getOrCreateClientSession } from "../src/web/client-session.js";
+import { wechatLoginRequestSchema } from "../src/server/validation.js";
 
 describe("critical web surfaces", () => {
   it("keeps the primary joke and two large vote actions on the first screen", () => {
@@ -40,5 +41,12 @@ describe("critical web surfaces", () => {
     values.set("memepop-session-v1", "bad id");
     expect(getOrCreateClientSession(storage, () => "abcdef00-0000-0000-0000-000000000000"))
       .toBe("web_abcdef00000000000000000000000000");
+  });
+
+  it("validates one-time WeChat login codes before contacting WeChat", () => {
+    expect(wechatLoginRequestSchema.parse({ code: "  temporary-code  " })).toEqual({
+      code: "temporary-code"
+    });
+    expect(() => wechatLoginRequestSchema.parse({ code: "bad" })).toThrow();
   });
 });

@@ -12,6 +12,10 @@
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
     "build": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
+    "mini:dev": "npm --prefix miniapp run dev:weapp",
+    "mini:build": "npm --prefix miniapp run build:weapp",
+    "mini:typecheck": "npm --prefix miniapp run typecheck",
+    "mini:test": "npm --prefix miniapp test",
     "db:generate": "drizzle-kit generate",
     "eval:humor": "tsx src/scripts/evaluate-humor.ts",
     "jokes:audit": "tsx src/scripts/audit-jokes.ts",
@@ -42,5 +46,8 @@
     "vite": "8.0.13",
     "vitest": "4.1.10",
     "wrangler": "4.92.0"
+  },
+  "overrides": {
+    "ws": "8.21.3"
   }
 }

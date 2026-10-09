@@ -8,6 +8,13 @@
       "when": 1786036486211,
       "tag": "0000_tired_roughhouse",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1786467710464,
+      "tag": "0001_chubby_klaw",
+      "breakpoints": true
     }
   ]
 }

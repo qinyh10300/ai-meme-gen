@@ -1,0 +1,22 @@
+[
+  ".github/workflows/publish-to-pypi.yml",
+  ".github/workflows/test.yml",
+  ".gitignore",
+  "CONTRIBUTING.md",
+  "LICENSE",
+  "README.md",
+  "assets/logo.png",
+  "examples/basic_usage.py",
+  "examples/integration_examples.py",
+  "memeclip/__init__.py",
+  "memeclip/api/__init__.py",
+  "memeclip/api/constants.py",
+  "memeclip/client.py",
+  "memeclip/models/__init__.py",
+  "memeclip/models/error.py",
+  "memeclip/models/meme.py",
+  "requirements.txt",
+  "setup.py",
+  "tests/__init__.py",
+  "tests/test_client.py"
+]

@@ -9,3 +9,8 @@ dist/
 coverage/
 *.tsbuildinfo
 .DS_Store
+miniapp/dist/
+miniapp/dist-h5/
+miniapp/.env.local
+miniapp/.env.*.local
+miniapp/.swc/

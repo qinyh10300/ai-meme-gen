@@ -17,6 +17,10 @@ export const eventIdSchema = z
   .max(96)
   .regex(/^[A-Za-z0-9_-]+$/, "event id contains unsupported characters");
 
+export const wechatLoginRequestSchema = z.object({
+  code: z.string().trim().min(6).max(160)
+});
+
 export const feedNextRequestSchema = z.object({
   sessionId: sessionIdSchema,
   currentId: z.string().max(160).nullable().optional(),

@@ -1,0 +1,70 @@
+page {
+  min-height: 100%;
+  background: #f4f3ed;
+  color: #171713;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  font-size: 28rpx;
+}
+
+view,
+text,
+button,
+textarea,
+input {
+  box-sizing: border-box;
+}
+
+button {
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+button::after {
+  border: 0;
+}
+
+.page-shell {
+  min-height: 100vh;
+  padding-bottom: calc(142rpx + env(safe-area-inset-bottom));
+  background:
+    radial-gradient(circle at 92% 8%, rgba(216, 255, 91, 0.34), transparent 34%),
+    #f4f3ed;
+}
+
+.page-content {
+  width: 100%;
+  padding: 24rpx 32rpx 44rpx;
+}
+
+.eyebrow {
+  color: #67675f;
+  font-size: 20rpx;
+  font-weight: 700;
+  letter-spacing: 3rpx;
+  text-transform: uppercase;
+}
+
+.surface-card {
+  border: 3rpx solid #171713;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 9rpx 9rpx 0 #171713;
+}
+
+.tap-scale {
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.tap-scale:active {
+  transform: scale(0.975);
+  opacity: 0.88;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}

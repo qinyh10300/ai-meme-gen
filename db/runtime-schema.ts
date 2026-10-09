@@ -121,7 +121,28 @@ const schemaStatements = [
     recorded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE INDEX IF NOT EXISTS idx_runtime_metrics_name_time
-    ON runtime_metrics(name, recorded_at)`
+    ON runtime_metrics(name, recorded_at)`,
+  `CREATE TABLE IF NOT EXISTS wechat_accounts (
+    id TEXT PRIMARY KEY NOT NULL,
+    openid_hash TEXT NOT NULL UNIQUE,
+    unionid_hash TEXT UNIQUE,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_login_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_wechat_accounts_unionid
+    ON wechat_accounts(unionid_hash)`,
+  `CREATE TABLE IF NOT EXISTS auth_sessions (
+    token_hash TEXT PRIMARY KEY NOT NULL,
+    user_id TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    revoked_at TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_auth_sessions_user
+    ON auth_sessions(user_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_auth_sessions_expiry
+    ON auth_sessions(expires_at)`
 ] as const;
 
 export async function ensureDatabaseSchema(): Promise<void> {

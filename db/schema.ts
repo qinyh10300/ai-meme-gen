@@ -145,3 +145,31 @@ export const runtimeMetrics = sqliteTable(
   },
   (table) => [index("idx_runtime_metrics_name_time").on(table.name, table.recordedAt)]
 );
+
+export const wechatAccounts = sqliteTable(
+  "wechat_accounts",
+  {
+    id: text("id").primaryKey(),
+    openidHash: text("openid_hash").notNull().unique(),
+    unionidHash: text("unionid_hash").unique(),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    lastLoginAt: text("last_login_at").notNull().default(sql`CURRENT_TIMESTAMP`)
+  },
+  (table) => [index("idx_wechat_accounts_unionid").on(table.unionidHash)]
+);
+
+export const authSessions = sqliteTable(
+  "auth_sessions",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    userId: text("user_id").notNull(),
+    expiresAt: text("expires_at").notNull(),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    lastSeenAt: text("last_seen_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    revokedAt: text("revoked_at")
+  },
+  (table) => [
+    index("idx_auth_sessions_user").on(table.userId),
+    index("idx_auth_sessions_expiry").on(table.expiresAt)
+  ]
+);
